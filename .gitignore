@@ -1,0 +1,16 @@
+# Generated builds
+build/
+Builds/
+DerivedData/
+cmake-build-*/
+CMakeUserPresets.json
+
+# macOS and personal Xcode settings
+.DS_Store
+xcuserdata/
+*.xcuserstate
+
+# Local secrets
+.env
+.env.*
+!.env.example
