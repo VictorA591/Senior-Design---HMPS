@@ -1,6 +1,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "../PluginSupport.h"
 
 class Application : public juce::JUCEApplication
 {
@@ -10,9 +11,10 @@ public:
 
     void initialise (const juce::String& commandLine) override
     {
+        if (runHmpsPluginScan (commandLine)) { quit(); return; }
         processor = std::make_unique<EducationalDawEngine>();
         const auto error = deviceManager.initialiseWithDefaultDevices (0, 2);
-        processor->audioStatus = error.isEmpty() ? "Audio ready - built-in synth"
+        processor->audioStatus = error.isEmpty() ? "Audio ready"
                                                : "Audio unavailable: " + error;
         audioPlayer.setProcessor (processor.get());
         deviceManager.addAudioCallback (&audioPlayer);

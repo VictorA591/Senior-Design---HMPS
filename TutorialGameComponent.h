@@ -1,26 +1,45 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PianoLesson.h"
+#include "StepLessonComponent.h"
 #include <algorithm>
 
 class TutorialGameComponent : public juce::Component, private juce::Timer
 {
 public:
-    explicit TutorialGameComponent (juce::MidiKeyboardState& state) : keys (state)
+    explicit TutorialGameComponent (juce::MidiKeyboardState& state) : keys (state), rhythm (state)
     {
-        for (auto* button : { &start, &listen })
+        for (auto* button : { &start, &listen, &next })
             addAndMakeVisible (*button);
         start.onClick = [this] { begin (false); };
         listen.onClick = [this] { begin (true); };
+        addChildComponent (rhythm);
+        next.onClick = [this]
+        {
+            if (! pianoPassed) return;
+            deactivate();
+            stepMode = true;
+            rhythm.reset();
+            rhythm.setVisible (true);
+            updateButtons();
+            resized();
+            repaint();
+        };
         setOpaque (true);
         updateButtons();
     }
 
     ~TutorialGameComponent() override { deactivate(); }
 
+    bool rhythmPassed() const { return rhythm.hasPassed(); }
+    bool isStepMode() const { return stepMode; }
     void reset()
     {
         deactivate();
+        stepMode = false;
+        pianoPassed = false;
+        rhythm.reset();
+        rhythm.setVisible (false);
         lesson = {};
         demo = false;
         elapsed = 0.0;
@@ -30,9 +49,30 @@ public:
         repaint();
     }
 
+    juce::var progress() const
+    {
+        auto* object = new juce::DynamicObject();
+        object->setProperty ("rhythm", stepMode);
+        object->setProperty ("pianoPassed", pianoPassed);
+        object->setProperty ("pattern", rhythm.progress());
+        return juce::var (object);
+    }
+    void restoreProgress (const juce::var& value)
+    {
+        if (! value.isObject()) return;
+        pianoPassed = static_cast<bool> (value["pianoPassed"]);
+        stepMode = pianoPassed && static_cast<bool> (value["rhythm"]);
+        rhythm.restoreProgress (value["pattern"]);
+        rhythm.setVisible (stepMode);
+        if (pianoPassed) message = "Piano lesson passed. Continue to Rhythm Builder or play again.";
+        updateButtons();
+        resized();
+        repaint();
+    }
     void deactivate()
     {
         stopTimer();
+        rhythm.stopPreview();
         silence();
         lesson.running = false;
         demo = false;
@@ -40,19 +80,22 @@ public:
 
     void resized() override
     {
+        rhythm.setBounds (getLocalBounds());
         auto bounds = getLocalBounds().reduced (8);
-        auto controls = bounds.removeFromBottom (44);
-        const int width = controls.getWidth() / 2;
+        auto controls = bounds.removeFromBottom (36);
+        const int width = controls.getWidth() / 3;
         start.setBounds (controls.removeFromLeft (width).reduced (4, 0));
         listen.setBounds (controls.removeFromLeft (width).reduced (4, 0));
+        next.setBounds (controls.reduced (4, 0));
         bounds.removeFromBottom (8);
-        statusArea = bounds.removeFromTop (44);
+        statusArea = bounds.removeFromTop (32);
         board = bounds.toFloat();
     }
 
     void paint (juce::Graphics& g) override
     {
         g.fillAll (juce::Colour (0xff18252f));
+        if (stepMode) return;
         g.setFont (juce::FontOptions (16.0f));
         g.setColour (juce::Colours::white);
         g.drawFittedText (message, statusArea, juce::Justification::centred, 2);
@@ -65,7 +108,8 @@ public:
             g.setColour (lane % 2 ? juce::Colour (0xff223744) : juce::Colour (0xff1d303c));
             g.fillRect (rect);
             auto key = rect.removeFromBottom (keyboardHeight).reduced (2, 1);
-            g.setColour (juce::Colours::ivory);
+            static constexpr int whiteNotes[] { 60, 62, 64, 65, 67, 69, 71, 72 };
+            g.setColour (keys.isNoteOn (1, whiteNotes[lane]) ? juce::Colour (0xff50c9b0) : juce::Colours::ivory);
             g.fillRect (key);
             g.setColour (juce::Colours::black);
             g.drawText (whiteNoteNames[lane], key.removeFromBottom (20), juce::Justification::centred);
@@ -78,7 +122,7 @@ public:
             auto key = juce::Rectangle<float> (noteCentre (note) - width / 2.0f,
                                                board.getBottom() - keyboardHeight,
                                                width, keyboardHeight * 0.62f);
-            g.setColour (juce::Colour (0xff10151b));
+            g.setColour (keys.isNoteOn (1, note) ? juce::Colour (0xff50c9b0) : juce::Colour (0xff10151b));
             g.fillRoundedRectangle (key, 3.0f);
             g.setColour (juce::Colours::white);
             g.setFont (juce::FontOptions (12.0f));
@@ -111,9 +155,27 @@ public:
                     + juce::String (lesson.misses), board.withHeight (24), juce::Justification::centred);
     }
 
+    // Only external input calls this. Preview/touch-generated notes cannot score themselves.
+    void playPhysicalKey (int note, double timestamp)
+    {
+        if (! isVisible() || stepMode || ! lesson.running || demo || timestamp < started) return;
+        const double when = timestamp - started;
+        int best = -1;
+        double nearest = PianoLesson::hitWindow + .001;
+        for (int i = 0; i < static_cast<int> (PianoLesson::melody.size()); ++i)
+            if (lesson.results[i] == 0 && PianoLesson::melody[i].midi == note)
+            {
+                const double distance = std::abs (when - PianoLesson::melody[i].at);
+                if (distance < nearest) { nearest = distance; best = i; }
+            }
+        const int earned = lesson.hit (best, when);
+        message = earned == 100 ? "Perfect! +100" : (earned > 0 ? "Good! +70" : "Wrong note or timing. -25.");
+        repaint();
+    }
+
     void mouseDown (const juce::MouseEvent& event) override
     {
-        if (! lesson.running || demo || ! board.contains (event.position)) return;
+        if (stepMode || ! lesson.running || demo || ! board.contains (event.position)) return;
         elapsed = now() - started;
         int tapped = -1;
         for (int i = 0; i < static_cast<int> (PianoLesson::melody.size()); ++i)
@@ -184,6 +246,8 @@ private:
     }
     void updateButtons()
     {
+        for (auto* button : { &start, &listen, &next }) button->setVisible (! stepMode);
+        next.setEnabled (pianoPassed && ! demo && ! lesson.running);
         listen.setEnabled (! lesson.running && ! demo);
         start.setButtonText (lesson.running || lesson.complete || demo ? "Restart Game" : "Start Game");
     }
@@ -214,7 +278,8 @@ private:
             lesson.advance (elapsed);
             if (lesson.complete)
             {
-                message = lesson.passed() ? "Passed! Piano tutorial complete."
+                if (lesson.passed()) pianoPassed = true;
+                message = lesson.passed() ? "Passed! Continue to Rhythm Builder."
                                          : "Score " + juce::String (lesson.score()) + "/1400. Need 980. Press Restart Game.";
                 updateButtons();
             }
@@ -226,13 +291,15 @@ private:
     }
     juce::MidiKeyboardState& keys;
     PianoLesson lesson;
+    StepLessonComponent rhythm;
+    bool stepMode = false, pianoPassed = false;
     bool demo = false;
     double started = 0.0, elapsed = 0.0;
     size_t demoIndex = 0;
     std::array<double, 128> offAt {};
     const char* whiteNoteNames[8] { "C4", "D", "E", "F", "G", "A", "B", "C5" };
     const char* chromaticNames[13] { "C4", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C5" };
-    juce::TextButton start { "Start Game" }, listen { "Listen" };
+    juce::TextButton start { "Start Game" }, listen { "Listen" }, next { "Next: Rhythm" };
     juce::String message;
     juce::Rectangle<int> statusArea;
     juce::Rectangle<float> board;

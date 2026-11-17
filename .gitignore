@@ -14,3 +14,4 @@ xcuserdata/
 .env
 .env.*
 !.env.example
+build-pi/
