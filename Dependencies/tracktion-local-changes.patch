@@ -1,0 +1,77 @@
+diff --git a/modules/tracktion_engine/model/automation/tracktion_ParameterControlMappings.cpp b/modules/tracktion_engine/model/automation/tracktion_ParameterControlMappings.cpp
+index 6a81cb0e187..b3969437aad 100644
+--- a/modules/tracktion_engine/model/automation/tracktion_ParameterControlMappings.cpp
++++ b/modules/tracktion_engine/model/automation/tracktion_ParameterControlMappings.cpp
+@@ -690,10 +690,9 @@ void ParameterControlMappings::savePreset (int index)
+     auto plugin = plugins[pluginNames[index].getTrailingIntValue()];
+ 
+     auto w = std::shared_ptr<juce::AlertWindow> (juce::LookAndFeel::getDefaultLookAndFeel()
+-                                                    .createAlertWindowForOptions (juce::MessageBoxOptions()
+-                                                                                    .withIconType (juce::MessageBoxIconType::QuestionIcon)
+-                                                                                    .withTitle (TRANS("Plugin mapping preset"))
+-                                                                                    .withMessage (TRANS("Create a new plugin mapping preset"))));
++                                                    .createAlertWindow (TRANS("Plugin mapping preset"),
++                                                                        TRANS("Create a new plugin mapping preset"),
++                                                                        {}, {}, {}, juce::MessageBoxIconType::QuestionIcon, 0, nullptr));
+ 
+     w->addTextEditor ("setName", plugin->getName(), TRANS("Name:"));
+     w->addButton (TRANS("OK"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+@@ -776,10 +775,9 @@ void ParameterControlMappings::loadPreset (int index)
+                     cb->setSelectedId (1);
+ 
+                     auto w = std::shared_ptr<juce::AlertWindow> (juce::LookAndFeel::getDefaultLookAndFeel()
+-                                                                    .createAlertWindowForOptions (juce::MessageBoxOptions()
+-                                                                                                    .withIconType (juce::MessageBoxIconType::QuestionIcon)
+-                                                                                                    .withTitle (TRANS("Select plugin"))
+-                                                                                                    .withMessage (TRANS("Select plugin to apply preset to:"))));
++                                                                    .createAlertWindow (TRANS("Select plugin"),
++                                                                                        TRANS("Select plugin to apply preset to:"),
++                                                                                        {}, {}, {}, juce::MessageBoxIconType::QuestionIcon, 0, nullptr));
+ 
+                     w->addCustomComponent (cb.get());
+                     w->addButton (TRANS("OK"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+diff --git a/modules/tracktion_engine/model/clips/tracktion_WaveAudioClip.cpp b/modules/tracktion_engine/model/clips/tracktion_WaveAudioClip.cpp
+index 677228dcfb3..420c4f90984 100644
+--- a/modules/tracktion_engine/model/clips/tracktion_WaveAudioClip.cpp
++++ b/modules/tracktion_engine/model/clips/tracktion_WaveAudioClip.cpp
+@@ -367,10 +367,8 @@ void WaveAudioClip::deleteAllUnusedTakesConfirmingWithUser (bool)
+                                 std::function<void (bool okPressed, bool delFiles)> callback)
+     {
+         auto w = std::shared_ptr<juce::AlertWindow> (juce::LookAndFeel::getDefaultLookAndFeel()
+-                                                        .createAlertWindowForOptions (juce::MessageBoxOptions()
+-                                                                                        .withIconType (juce::MessageBoxIconType::QuestionIcon)
+-                                                                                        .withTitle (title)
+-                                                                                        .withMessage (message)));
++                                                        .createAlertWindow (title, message, {}, {}, {},
++                                                                            juce::MessageBoxIconType::QuestionIcon, 0, nullptr));
+ 
+         auto delFilesButton = std::make_shared<juce::ToggleButton> (TRANS("Delete Source Files?"));
+         delFilesButton->setSize (400, 20);
+diff --git a/modules/tracktion_engine/utilities/tracktion_UIBehaviour.cpp b/modules/tracktion_engine/utilities/tracktion_UIBehaviour.cpp
+index d7329acbb27..99b641e9171 100644
+--- a/modules/tracktion_engine/utilities/tracktion_UIBehaviour.cpp
++++ b/modules/tracktion_engine/utilities/tracktion_UIBehaviour.cpp
+@@ -41,8 +41,8 @@ void UIBehaviour::showOkCancelAlertBoxAsync (const juce::String& title, const ju
+                      .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                      .withTitle (title)
+                      .withMessage (message)
+-                     .withButton (ok.isNotEmpty() ? ok : TRANS("OK"), 1)
+-                     .withButton (cancel.isNotEmpty() ? cancel : TRANS("Cancel"), 0);
++                     .withButton (ok.isNotEmpty() ? ok : TRANS("OK"))
++                     .withButton (cancel.isNotEmpty() ? cancel : TRANS("Cancel"));
+ 
+     juce::AlertWindow::showAsync (options, [cb = std::move (callback)] (int result)
+     {
+@@ -60,9 +60,9 @@ void UIBehaviour::showYesNoCancelAlertBoxAsync (const juce::String& title, const
+                      .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                      .withTitle (title)
+                      .withMessage (message)
+-                     .withButton (yes.isNotEmpty() ? yes : TRANS("Yes"), 1)
+-                     .withButton (no.isNotEmpty() ? no : TRANS("No"), 2)
+-                     .withButton (cancel.isNotEmpty() ? cancel : TRANS("Cancel"), 0);
++                     .withButton (yes.isNotEmpty() ? yes : TRANS("Yes"))
++                     .withButton (no.isNotEmpty() ? no : TRANS("No"))
++                     .withButton (cancel.isNotEmpty() ? cancel : TRANS("Cancel"));
+ 
+     juce::AlertWindow::showAsync (options, [cb = std::move (callback)] (int result)
+     {

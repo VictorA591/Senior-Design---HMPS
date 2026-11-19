@@ -23,11 +23,12 @@ Use the DAW's Add Folder to scan that VST3 output directory. No automatic system
 Do not scan the build's test-vst3 fixture folder as a production instrument library.
 
 ## Raspberry Pi 5
-Copy the source repository including Assets/Piano, plus the JUCE and Tracktion source checkouts.
+Clone or copy the source repository including Assets/Piano, JUCE, and Dependencies/tracktion_engine.
+Both dependency snapshots are included; no external source checkouts are required.
 Do not copy Mac executables, Xcode build folders, or Mac VST3 binaries to the Pi.
 Build a fresh Release configuration on Raspberry Pi OS Lite 64-bit:
 
-    cmake -S . -B build-pi -DCMAKE_BUILD_TYPE=Release -DHMPS_TRACKTION_DIR=/path/to/tracktion_engine
+    cmake -S . -B build-pi -DCMAKE_BUILD_TYPE=Release
     cmake --build build-pi --target EducationalDAW --parallel 2
 
 Install the C++/CMake toolchain and JUCE's Linux ALSA, font, X11 and graphics development

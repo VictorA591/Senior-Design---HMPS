@@ -4,7 +4,7 @@ project(EducationalDAW VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Point this at a real JUCE checkout when deploying to another machine.
+# Repository-owned dependency snapshots work on both macOS and Linux.
 set(HMPS_JUCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "JUCE source directory")
 add_subdirectory("${HMPS_JUCE_DIR}" bin/JUCE)
 
@@ -14,7 +14,8 @@ if(NOT HMPS_WITH_TRACKTION)
     message(FATAL_ERROR "HMPS requires Tracktion Engine for session playback.")
 endif()
 if(HMPS_WITH_TRACKTION)
-    set(HMPS_TRACKTION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../tracktion_engine" CACHE PATH "Tracktion source directory")
+    set(HMPS_TRACKTION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/tracktion_engine" CACHE PATH "Tracktion source directory")
+    set(TE_ADD_EXAMPLES OFF CACHE BOOL "Build Tracktion example applications")
     add_subdirectory("${HMPS_TRACKTION_DIR}" bin/tracktion_engine)
 endif()
 
