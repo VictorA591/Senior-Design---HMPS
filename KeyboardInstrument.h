@@ -4,6 +4,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <algorithm>
 
 // The same sound bank and voices are compiled into HMPS and the HMPS Keys VST3.
 namespace hmps
@@ -36,7 +37,7 @@ public:
             auto& sample = samples[i];
             sample.root = roots[i];
             sample.rate = reader->sampleRate;
-            const int length = static_cast<int> (juce::jmin<juce::int64> (reader->lengthInSamples,
+            const int length = static_cast<int> (std::min<juce::int64> (reader->lengthInSamples,
                 static_cast<juce::int64> (sample.rate * 6)));
             sample.audio.setSize (2, length + 1);
             sample.audio.clear();
