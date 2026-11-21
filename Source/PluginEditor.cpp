@@ -34,6 +34,32 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
             ? midiInputs[index].identifier : juce::String());
     };
     refreshMidiInputs();
+    addAndMakeVisible (midiOutputChoice);
+
+    midiOutputChoice.setTooltip (
+        "Send keyboard MIDI to the ESP32-S3 USB MIDI device");
+
+    midiOutputChoice.onChange = [this]
+    {
+        const int index = midiOutputChoice.getSelectedId() - 2;
+
+        const auto identifier =
+            juce::isPositiveAndBelow (index, midiOutputs.size())
+                ? midiOutputs[index].identifier
+                : juce::String();
+
+        if (! processor.selectMidiOutput (identifier))
+        {
+            juce::AlertWindow::showMessageBoxAsync (
+                juce::MessageBoxIconType::WarningIcon,
+                "MIDI output unavailable",
+                "The selected MIDI output could not be opened.");
+        }
+
+        refreshMidiOutputs();
+    };
+
+    refreshMidiOutputs();
     addAndMakeVisible (keyboard);
     addAndMakeVisible (tutorial);
     for (auto* component : std::initializer_list<juce::Component*> { &arranger, &stepGrid, &addKeyboard, &addDrums, &tempo })
@@ -326,7 +352,7 @@ void EducationalDawEditor::showScreen (Screen next)
     instructions.setVisible (screen == Screen::learningMenu);
     instructions.setText ("Begin a new tutorial or pick up where you left off.", juce::dontSendNotification);
     learningButton.setVisible (menu); sandboxButton.setVisible (menu);
-    midiInputChoice.setVisible (menu); audioStatus.setVisible (menu || work);
+    midiInputChoice.setVisible (menu); midiOutputChoice.setVisible(menu); audioStatus.setVisible (menu || work);
     beginTutorial.setVisible (screen == Screen::learningMenu);
     resumeButton.setVisible (screen == Screen::learningMenu);
     resumeButton.setEnabled (musicDirectory.getChildFile ("tutorial-progress.json").existsAsFile());
@@ -355,7 +381,7 @@ void EducationalDawEditor::timerCallback()
 {
     processor.serviceTimeline();
     if (screen == Screen::learning) tutorial.repaint();
-    if (++midiRefreshTicks >= 30) { midiRefreshTicks = 0; refreshMidiInputs(); }
+    if (++midiRefreshTicks >= 30) { midiRefreshTicks = 0; refreshMidiInputs(); refreshMidiOutputs();}
     audioStatus.setText (processor.audioStatus + " | " + processor.midiInputStatus(), juce::dontSendNotification);
     EducationalDawEngine::ExternalNote externalNote;
     while (processor.popExternalNote (externalNote))
@@ -470,7 +496,14 @@ void EducationalDawEditor::resized()
     if (screen == Screen::menu)
     {
         audioStatus.setBounds (area.removeFromBottom (28));
-        midiInputChoice.setBounds (area.removeFromBottom (36).withSizeKeepingCentre (420, 36));
+        auto midiRow = area.removeFromBottom (36);
+        const int halfWidth = midiRow.getWidth() / 2;
+
+        midiInputChoice.setBounds (
+            midiRow.removeFromLeft (halfWidth).reduced (3, 0));
+
+        midiOutputChoice.setBounds (
+            midiRow.reduced (3, 0));
         auto buttons = area.withSizeKeepingCentre (juce::jmin (400, area.getWidth()), 172);
         learningButton.setBounds (buttons.removeFromTop (76));
         buttons.removeFromTop (20); sandboxButton.setBounds (buttons);
@@ -1062,6 +1095,41 @@ void EducationalDawEditor::refreshMidiInputs()
     midiInputChoice.setSelectedId (selected, juce::dontSendNotification);
 }
 
+void EducationalDawEditor::refreshMidiOutputs()
+{
+    if (midiOutputChoice.isPopupActive())
+        return;
+
+    midiOutputs = juce::MidiOutput::getAvailableDevices();
+
+    midiOutputChoice.clear (juce::dontSendNotification);
+    midiOutputChoice.addItem ("MIDI Output: None", 1);
+
+    const auto identifier = processor.midiOutputIdentifier();
+    int selected = 1;
+    bool found = identifier.isEmpty();
+
+    for (int i = 0; i < midiOutputs.size(); ++i)
+    {
+        midiOutputChoice.addItem (
+            "Output: " + midiOutputs[i].name, i + 2);
+
+        if (midiOutputs[i].identifier == identifier)
+        {
+            selected = i + 2;
+            found = true;
+        }
+    }
+
+    if (! found)
+    {
+        // Close an output that has disappeared.
+        processor.selectMidiOutput ({});
+    }
+
+    midiOutputChoice.setSelectedId (
+        selected, juce::dontSendNotification);
+}
 void EducationalDawEditor::showSoundChooser()
 {
     if (pluginBusy || pluginScan || arrangement.current() == nullptr) return;

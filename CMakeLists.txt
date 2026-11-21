@@ -75,6 +75,7 @@ target_sources(EducationalDAW PRIVATE
     PluginSupport.h
     TracktionSession.h
     ExternalMidiInput.h
+    ExternalMidiOutput.h
     KeyboardInstrument.h
     SoundPicker.h
 )

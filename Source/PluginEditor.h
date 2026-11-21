@@ -64,6 +64,9 @@ private:
     void refreshMidiInputs();
     juce::ComboBox midiInputChoice;
     juce::Array<juce::MidiDeviceInfo> midiInputs;
+    void refreshMidiOutputs();
+    juce::ComboBox midiOutputChoice;
+    juce::Array<juce::MidiDeviceInfo> midiOutputs;
     int midiRefreshTicks = 0;
     void refreshInstrumentChoices();
     void showSoundChooser();

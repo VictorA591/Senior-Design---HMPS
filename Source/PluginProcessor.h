@@ -6,6 +6,7 @@
 
 class TracktionSession;
 class ExternalMidiInput;
+class ExternalMidiOutput;
 
 class EducationalDawEngine : public juce::AudioProcessor, private juce::AudioProcessorListener
 {
@@ -54,6 +55,8 @@ public:
     void selectMidiInput (const juce::String&);
     juce::String midiInputIdentifier() const;
     juce::String midiInputStatus() const;
+    bool selectMidiOutput (const juce::String& identifier);
+    juce::String midiOutputIdentifier() const;
     void receiveExternalMidi (const juce::MidiMessage&);
     void panicExternalMidi() { externalPanic.store (true); }
     // 0: ignore, 1: tutorial keyboard, 2: selected Sandbox instrument.
@@ -105,6 +108,8 @@ public:
 private:
     std::unique_ptr<TracktionSession> timeline;
     std::unique_ptr<ExternalMidiInput> midiInput;
+    std::unique_ptr<ExternalMidiOutput> midiOutput;
+    juce::MidiBuffer onscreenMidi;
     juce::MidiMessageCollector externalCollector;
     juce::MidiBuffer externalBuffer;
     std::atomic<bool> externalPanic { false }, midiReady { false };

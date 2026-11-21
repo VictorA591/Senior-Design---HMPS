@@ -75,8 +75,9 @@ public:
         preset = choices[channel].load();
         gain = gains[channel].load();
         smooth = static_cast<float> (1 - std::exp (-1 / (getSampleRate() * .005)));
-        amplitude = velocity * (preset == 0 ? .32f : .09f);
+        amplitude = velocity * (preset == 0 ? .32f : .06f);
         phase = 0;
+        secondPhase = 0;
         frequency = juce::MidiMessage::getMidiNoteInHertz (note);
         sampleIndex = juce::jlimit (0, 4, static_cast<int> (std::lround ((note - 60) / 3.0)));
         position = bank->samples[sampleIndex].start;
@@ -84,8 +85,8 @@ public:
               * std::pow (2.0, (note - bank->samples[sampleIndex].root) / 12.0);
         pitchWheelMoved (pitchWheel);
         envelope.setSampleRate (getSampleRate());
-        envelope.setParameters (preset == 0 ? juce::ADSR::Parameters { .001f, .01f, 1, .20f }
-                                           : juce::ADSR::Parameters { .008f, .12f, .65f, .18f });
+        envelope.setParameters (preset == 0 ? juce::ADSR::Parameters { .001f, .01f, 1.0f, .20f }
+                                           : juce::ADSR::Parameters { .003f, .02f, 1.0f, .10f });
         envelope.noteOn();
     }
     void stopNote (float, bool tail) override
@@ -118,25 +119,79 @@ public:
             }
             else
             {
-                // A bright, band-limited additive lead; omit harmonics above Nyquist.
-                double value = 0;
-                for (int harmonic = 1; harmonic <= 8 && harmonic * frequency * bend < getSampleRate() * .45; ++harmonic)
-                    value += std::sin (phase * harmonic) / (harmonic * harmonic * .35 + .65);
+                const double sampleRate = getSampleRate();
+                const double twoPi = juce::MathConstants<double>::twoPi;
+
+                // Second oscillator is approximately six cents sharper.
+                // This is subtle detuning, not a different musical note.
+                constexpr double detuneRatio = 1.0034717485;
+
+                const double firstFrequency = frequency * bend;
+                const double secondFrequency = firstFrequency * detuneRatio;
+
+                const float firstOscillator =
+                    leadWave (phase, firstFrequency, sampleRate);
+
+                const float secondOscillator =
+                    leadWave (secondPhase, secondFrequency, sampleRate);
+
+                // Average the oscillators so adding another does not double gain.
+                const float value =
+                    0.8f * firstOscillator + 0.2f * secondOscillator;
+
                 for (int c = 0; c < output.getNumChannels(); ++c)
-                    output.addSample (c, i, static_cast<float> (value) * level);
-                phase = std::fmod (phase + juce::MathConstants<double>::twoPi * frequency * bend / getSampleRate(),
-                                   juce::MathConstants<double>::twoPi);
+                    output.addSample (c, i, value * level);
+
+                phase = std::fmod (
+                    phase + twoPi * firstFrequency / sampleRate,
+                    twoPi);
+
+                secondPhase = std::fmod (
+                    secondPhase + twoPi * secondFrequency / sampleRate,
+                    twoPi);
             }
             if (! envelope.isActive()) { clearCurrentNote(); break; }
         }
     }
 private:
+    static float leadWave (
+        double oscillatorPhase,
+        double oscillatorFrequency,
+        double sampleRate)
+    {
+        constexpr double dutyCycle = 0.25;
+        constexpr int maxHarmonics = 16;
+
+        const double pi = juce::MathConstants<double>::pi;
+        double value = 0.0;
+
+        for (int harmonic = 1; harmonic <= maxHarmonics; ++harmonic)
+        {
+            if (harmonic * oscillatorFrequency >= sampleRate * 0.45)
+                break;
+
+            const double coefficient =
+                4.0 * std::sin (pi * harmonic * dutyCycle)
+                / (pi * harmonic);
+
+            value += coefficient
+                * std::cos (harmonic * oscillatorPhase);
+        }
+
+        return static_cast<float> (value * 0.6);
+    }
     std::array<std::atomic<float>, 16>& gains;
     std::array<std::atomic<int>, 16>& choices;
     KeyboardSound* bank = nullptr;
     juce::ADSR envelope;
     int channel = 0, preset = 0, sampleIndex = 0;
-    double phase = 0, frequency = 440, position = 0, ratio = 1, bend = 1;
+    double phase = 0;
+    double secondPhase = 0;
+    double frequency = 440;
+    double position = 0;
+    double ratio = 1;
+    double bend = 1;
     float amplitude = 0, gain = 1, smooth = .004f;
 };
+
 }
