@@ -96,6 +96,7 @@ target_compile_definitions(EducationalDAW PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CU
 juce_generate_juce_header(EducationalDAW)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(EducationalDAW PRIVATE atomic)
     install(TARGETS EducationalDAW RUNTIME DESTINATION bin)
 endif()
 
