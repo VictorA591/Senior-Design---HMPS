@@ -1077,6 +1077,8 @@ void EducationalDawEditor::resetInstruments()
 
 void EducationalDawEditor::refreshMidiInputs()
 {
+    if (midiInputChoice.isPopupActive())
+        return;
     midiInputs = juce::MidiInput::getAvailableDevices();
     midiInputChoice.clear (juce::dontSendNotification);
     midiInputChoice.addItem ("MIDI Input: None", 1);
