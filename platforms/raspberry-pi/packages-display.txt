@@ -1,0 +1,7 @@
+# Optional minimal X11 environment and diagnostic tools for OS Lite.
+xserver-xorg
+xinit
+openbox
+x11-xserver-utils
+fonts-dejavu-core
+alsa-utils
