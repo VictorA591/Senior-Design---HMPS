@@ -23,10 +23,29 @@ public:
     }
 };
 
+class TouchMenuStyle : public juce::LookAndFeel_V4
+{
+public:
+    juce::PopupMenu::Options getOptionsForComboBoxPopupMenu (
+        juce::ComboBox& box, juce::Label& label) override
+    {
+        auto options =
+            juce::LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label);
+
+#if JUCE_LINUX
+        // Keep the popup in the existing application window.
+        options = options.withParentComponent (box.getTopLevelComponent());
+#endif
+
+        return options.withStandardItemHeight (44);
+    }
+};
+
 class EducationalDawEditor : public juce::AudioProcessorEditor, private juce::Timer,
                              private juce::FileBrowserListener,
                              private juce::ChangeListener
 {
+    
 public:
     explicit EducationalDawEditor (EducationalDawEngine&);
     ~EducationalDawEditor() override;
@@ -34,6 +53,7 @@ public:
     void resized() override;
 
 private:
+    TouchMenuStyle touchMenuStyle;
     enum class Screen { menu, files, sandbox, learningMenu, learning };
     void showScreen (Screen);
     void timerCallback() override;

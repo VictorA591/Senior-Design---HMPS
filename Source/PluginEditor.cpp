@@ -7,6 +7,8 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     : AudioProcessorEditor (&p), processor (p),
       keyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
+    setLookAndFeel (&touchMenuStyle);
+
     for (auto* label : { &title, &instructions, &feedback, &audioStatus })
     {
         addAndMakeVisible (*label);
@@ -293,6 +295,10 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
 EducationalDawEditor::~EducationalDawEditor()
 {
     stopTimer();
+    midiInputChoice.hidePopup();
+    midiOutputChoice.hidePopup();
+    instrumentChoice.hidePopup();
+    setLookAndFeel (nullptr);
     if (screen == Screen::learning) saveTutorialProgress();
     ++pluginGeneration;
     pluginScan.reset();
@@ -496,14 +502,10 @@ void EducationalDawEditor::resized()
     if (screen == Screen::menu)
     {
         audioStatus.setBounds (area.removeFromBottom (28));
-        auto midiRow = area.removeFromBottom (36);
+        auto midiRow = area.removeFromBottom (44);
         const int halfWidth = midiRow.getWidth() / 2;
-
-        midiInputChoice.setBounds (
-            midiRow.removeFromLeft (halfWidth).reduced (3, 0));
-
-        midiOutputChoice.setBounds (
-            midiRow.reduced (3, 0));
+        midiInputChoice.setBounds (midiRow.removeFromLeft (halfWidth).reduced (3, 0));
+        midiOutputChoice.setBounds (midiRow.reduced (3, 0));
         auto buttons = area.withSizeKeepingCentre (juce::jmin (400, area.getWidth()), 172);
         learningButton.setBounds (buttons.removeFromTop (76));
         buttons.removeFromTop (20); sandboxButton.setBounds (buttons);
@@ -1079,6 +1081,7 @@ void EducationalDawEditor::refreshMidiInputs()
 {
     if (midiInputChoice.isPopupActive())
         return;
+
     midiInputs = juce::MidiInput::getAvailableDevices();
     midiInputChoice.clear (juce::dontSendNotification);
     midiInputChoice.addItem ("MIDI Input: None", 1);
