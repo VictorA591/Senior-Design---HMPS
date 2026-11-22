@@ -138,9 +138,12 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     };
 
     refreshMidiOutputs();
+    arrangerViewport.setViewedComponent (&arranger, false);
+    arrangerViewport.setScrollBarsShown (true, false);
+    arrangerViewport.setScrollOnDragEnabled (true);
     addAndMakeVisible (keyboard);
     addAndMakeVisible (tutorial);
-    for (auto* component : std::initializer_list<juce::Component*> { &arranger, &stepGrid, &addKeyboard, &addDrums, &tempo })
+    for (auto* component : std::initializer_list<juce::Component*> { &arrangerViewport, &stepGrid, &addKeyboard, &addDrums, &tempo })
         addAndMakeVisible (*component);
     for (auto* c : std::initializer_list<juce::Component*> { &addTrackButton, &guideText, &guideNext, &sessionBoxTitle, &savePattern, &loadPattern, &previewPattern })
         addAndMakeVisible (*c);
@@ -446,7 +449,7 @@ void EducationalDawEditor::showScreen (Screen next)
     keyboardButton.setButtonText ("Create Session");
     openButton.setVisible (files); deleteButton.setVisible (files);
     backButton.setVisible (! menu); backButton.setButtonText (work ? "Exit" : "Main Menu");
-    arranger.setVisible (work); addTrackButton.setVisible (work); tempo.setVisible (work);
+    arrangerViewport.setVisible (work); addTrackButton.setVisible (work); tempo.setVisible (work);
     addKeyboard.setVisible (false); addDrums.setVisible (false);
     sessionName.setVisible (work); sessionName.setReadOnly (learning);
     guideText.setVisible (learning); guideNext.setVisible (learning);
@@ -576,7 +579,12 @@ void EducationalDawEditor::resized()
             keyboard.setKeyWidth (keyboard.getWidth() / 8.0f);
             stepGrid.setBounds (instrument.reduced (0, 4));
         }
-        arranger.setBounds (area.reduced (0, 2));
+        arrangerViewport.setBounds (area.reduced (0, 2));
+        // Keep track controls readable; scroll within the original arranger area.
+        const int contentHeight = juce::jmax (216, arrangerViewport.getHeight());
+        const int scrollWidth = contentHeight > arrangerViewport.getHeight()
+            ? arrangerViewport.getScrollBarThickness() : 0;
+        arranger.setSize (juce::jmax (1, arrangerViewport.getWidth() - scrollWidth), contentHeight);
         return;
     }
     title.setBounds (area.removeFromTop (76));

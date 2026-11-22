@@ -175,6 +175,7 @@ private:
     juce::TextEditor sessionName;
     SessionArrangement arrangement;
     ArrangerView arranger { arrangement };
+    juce::Viewport arrangerViewport;
     StepGrid stepGrid;
     juce::TextButton addKeyboard { "+ Keyboard" }, addDrums { "+ Drum Track" };
     juce::Slider tempo;
