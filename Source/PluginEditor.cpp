@@ -460,6 +460,8 @@ void EducationalDawEditor::showScreen (Screen next)
     refreshArrangement();
     if (leavingTutorial && next == Screen::sandbox) restoreInstruments();
     resized();
+    // Screen-specific backgrounds must be cleared beyond the child control bounds.
+    repaint();
 }
 
 void EducationalDawEditor::timerCallback()
