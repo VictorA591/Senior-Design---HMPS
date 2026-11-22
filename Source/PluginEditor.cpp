@@ -2,6 +2,7 @@
 #include "../SoundPicker.h"
 #include "../SessionNamePanel.h"
 #include <algorithm>
+#include <iostream>
 
 EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     : AudioProcessorEditor (&p), processor (p),
@@ -31,6 +32,12 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     midiInputChoice.setTooltip ("Choose your ESP32-S3 USB MIDI device or MIDI keyboard");
     midiInputChoice.onChange = [this]
     {
+        std::cerr << "[MIDI INPUT] selection changed: id="
+                  << midiInputChoice.getSelectedId()
+                  << " text="
+                  << midiInputChoice.getText().toStdString()
+                  << std::endl;
+
         const int index = midiInputChoice.getSelectedId() - 2;
         processor.selectMidiInput (juce::isPositiveAndBelow (index, midiInputs.size())
             ? midiInputs[index].identifier : juce::String());
@@ -43,6 +50,12 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
 
     midiOutputChoice.onChange = [this]
     {
+        std::cerr << "[MIDI OUTPUT] selection changed: id="
+                  << midiOutputChoice.getSelectedId()
+                  << " text="
+                  << midiOutputChoice.getText().toStdString()
+                  << std::endl;
+
         const int index = midiOutputChoice.getSelectedId() - 2;
 
         const auto identifier =
