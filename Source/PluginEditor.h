@@ -23,6 +23,75 @@ public:
     }
 };
 
+class TouchComboBox;
+
+class TouchMenuRow : public juce::Component
+{
+public:
+    TouchMenuRow (TouchComboBox& owner, int itemId, const juce::String& itemText)
+        : owner (owner), itemId (itemId), itemText (itemText)
+    {
+        setInterceptsMouseClicks (true, false);
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        g.setColour (juce::Colour (0xff315b75));
+        g.fillRoundedRectangle (getLocalBounds().reduced (2).toFloat(), 5);
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions (18));
+        g.drawFittedText (itemText, getLocalBounds().reduced (12, 0),
+                          juce::Justification::centredLeft, 1);
+    }
+
+    void mouseDown (const juce::MouseEvent&) override;
+
+private:
+    TouchComboBox& owner;
+    int itemId;
+    juce::String itemText;
+};
+
+class TouchMenuPopup : public juce::Component
+{
+public:
+    explicit TouchMenuPopup (TouchComboBox& owner);
+
+private:
+    juce::OwnedArray<TouchMenuRow> rows;
+    friend class TouchComboBox;
+};
+
+class TouchComboBox : public juce::ComboBox
+{
+public:
+    ~TouchComboBox() override { hideTouchPopup(); }
+
+    void mouseDown (const juce::MouseEvent& event) override
+    {
+        if (event.source.isTouch())
+            showTouchPopup();
+        else
+            juce::ComboBox::mouseDown (event);
+    }
+
+    void mouseUp (const juce::MouseEvent& event) override
+    {
+        if (! event.source.isTouch())
+            juce::ComboBox::mouseUp (event);
+    }
+
+    bool isTouchPopupActive() const noexcept { return touchPopup != nullptr; }
+    void hideTouchPopup();
+    void chooseTouchItem (int itemId);
+
+private:
+    void showTouchPopup();
+    std::unique_ptr<TouchMenuPopup> touchPopup;
+
+    friend class TouchMenuPopup;
+};
+
 class TouchMenuStyle : public juce::LookAndFeel_V4
 {
 public:
@@ -31,11 +100,6 @@ public:
     {
         auto options =
             juce::LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label);
-
-#if JUCE_LINUX
-        // Keep the popup in the existing application window.
-        options = options.withParentComponent (box.getTopLevelComponent());
-#endif
 
         return options.withStandardItemHeight (44);
     }
@@ -82,10 +146,10 @@ private:
     juce::TooltipWindow tooltips { this, 500 };
     void updateTrackLevels();
     void refreshMidiInputs();
-    juce::ComboBox midiInputChoice;
+    TouchComboBox midiInputChoice;
     juce::Array<juce::MidiDeviceInfo> midiInputs;
     void refreshMidiOutputs();
-    juce::ComboBox midiOutputChoice;
+    TouchComboBox midiOutputChoice;
     juce::Array<juce::MidiDeviceInfo> midiOutputs;
     int midiRefreshTicks = 0;
     void refreshInstrumentChoices();
@@ -96,7 +160,7 @@ private:
     void restoreInstruments (int track = 0);
     void captureInstrumentStates();
     void resetInstruments();
-    juce::ComboBox instrumentChoice;
+    TouchComboBox instrumentChoice;
     juce::TextButton scanButton { "Scan VST3" }, folderButton { "Add Folder" }, pluginEditorButton { "Sound Controls" };
     std::shared_ptr<juce::AudioPluginFormatManager> pluginFormats = std::make_shared<juce::AudioPluginFormatManager>();
     juce::KnownPluginList knownPlugins;

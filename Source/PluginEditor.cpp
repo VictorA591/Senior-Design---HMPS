@@ -4,6 +4,70 @@
 #include <algorithm>
 #include <iostream>
 
+void TouchMenuRow::mouseDown (const juce::MouseEvent&)
+{
+    owner.chooseTouchItem (itemId);
+}
+
+TouchMenuPopup::TouchMenuPopup (TouchComboBox& owner)
+{
+    setAlwaysOnTop (true);
+
+    for (int i = 0; i < owner.getNumItems(); ++i)
+    {
+        auto* row = rows.add (new TouchMenuRow (owner, owner.getItemId (i), owner.getItemText (i)));
+        addAndMakeVisible (*row);
+    }
+
+    setSize (owner.getWidth(), juce::jmax (44, rows.size() * 44));
+}
+
+void TouchComboBox::showTouchPopup()
+{
+    if (touchPopup != nullptr)
+    {
+        hideTouchPopup();
+        return;
+    }
+
+    auto* topLevel = getTopLevelComponent();
+    if (topLevel == nullptr)
+        return;
+
+    touchPopup = std::make_unique<TouchMenuPopup> (*this);
+    topLevel->addAndMakeVisible (*touchPopup);
+
+    const int width = juce::jlimit (180, topLevel->getWidth() - 8, juce::jmax (getWidth(), 180));
+    const int height = juce::jlimit (44,
+                                     juce::jmax (44, topLevel->getHeight() - 8),
+                                     touchPopup->getHeight());
+    const auto topLevelBounds = topLevel->getLocalBounds();
+    const auto comboBounds = topLevel->getLocalArea (nullptr, getScreenBounds());
+    int x = juce::jlimit (topLevelBounds.getX() + 4,
+                          topLevelBounds.getRight() - width - 4,
+                          comboBounds.getX());
+    int y = comboBounds.getBottom();
+    if (y + height > topLevelBounds.getBottom() - 4)
+        y = juce::jmax (topLevelBounds.getY() + 4, comboBounds.getY() - height);
+
+    touchPopup->setBounds (x, y, width, height);
+    touchPopup->toFront (false);
+
+    for (int i = 0; i < touchPopup->rows.size(); ++i)
+        touchPopup->rows[i]->setBounds (0, i * 44, width, 44);
+}
+
+void TouchComboBox::hideTouchPopup()
+{
+    touchPopup.reset();
+}
+
+void TouchComboBox::chooseTouchItem (int itemId)
+{
+    setSelectedId (itemId, juce::sendNotification);
+    hideTouchPopup();
+}
+
 EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     : AudioProcessorEditor (&p), processor (p),
       keyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
@@ -29,7 +93,7 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     }
 
     addAndMakeVisible (midiInputChoice);
-    midiInputChoice.setTooltip ("Choose your ESP32-S3 USB MIDI device or MIDI keyboard");
+    //midiInputChoice.setTooltip ("Choose your ESP32-S3 USB MIDI device or MIDI keyboard");
     midiInputChoice.onChange = [this]
     {
         std::cerr << "[MIDI INPUT] selection changed: id="
@@ -45,8 +109,7 @@ EducationalDawEditor::EducationalDawEditor (EducationalDawEngine& p)
     refreshMidiInputs();
     addAndMakeVisible (midiOutputChoice);
 
-    midiOutputChoice.setTooltip (
-        "Send keyboard MIDI to the ESP32-S3 USB MIDI device");
+    //midiOutputChoice.setTooltip ("Send keyboard MIDI to the ESP32-S3 USB MIDI device");
 
     midiOutputChoice.onChange = [this]
     {
@@ -311,6 +374,9 @@ EducationalDawEditor::~EducationalDawEditor()
     midiInputChoice.hidePopup();
     midiOutputChoice.hidePopup();
     instrumentChoice.hidePopup();
+    midiInputChoice.hideTouchPopup();
+    midiOutputChoice.hideTouchPopup();
+    instrumentChoice.hideTouchPopup();
     setLookAndFeel (nullptr);
     if (screen == Screen::learning) saveTutorialProgress();
     ++pluginGeneration;
@@ -1092,7 +1158,7 @@ void EducationalDawEditor::resetInstruments()
 
 void EducationalDawEditor::refreshMidiInputs()
 {
-    if (midiInputChoice.isPopupActive())
+    if (midiInputChoice.isPopupActive() || midiInputChoice.isTouchPopupActive())
         return;
 
     midiInputs = juce::MidiInput::getAvailableDevices();
@@ -1115,7 +1181,7 @@ void EducationalDawEditor::refreshMidiInputs()
 
 void EducationalDawEditor::refreshMidiOutputs()
 {
-    if (midiOutputChoice.isPopupActive())
+    if (midiOutputChoice.isPopupActive() || midiOutputChoice.isTouchPopupActive())
         return;
 
     midiOutputs = juce::MidiOutput::getAvailableDevices();
